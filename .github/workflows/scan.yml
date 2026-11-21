@@ -1,27 +1,22 @@
-name: Happ Cascade Builder
+name: Telegram Keys Harvester
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/20 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  harvest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install Xray Core
-        run: |
-          curl -sL https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip
-          unzip -q -o xray.zip xray
-          chmod +x xray
-      - name: Build RU-Bridge Cascade for Happ
+      - name: Scrape fresh keys from Telegram channels
         run: python3 scanner.py
-      - name: Publish Happ JSON subscription
+      - name: Publish Happ subscription
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add sub/ nodes.json
-          git diff --staged --quiet || (git commit -m "Update Happ RU-bridge cascade" && git push)
+          git diff --staged --quiet || (git commit -m "Update fresh Telegram VPN keys" && git push)
