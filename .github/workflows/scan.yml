@@ -1,7 +1,7 @@
 name: WARP IP Scanner
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -12,16 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run scanner
-        env:
-          WORKER_URL: ${{ secrets.WORKER_URL }}
-          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+      - name: Install Xray Core
         run: |
-          pip install cryptography
-          python3 scanner.py
+          curl -sL https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip
+          unzip -q -o xray.zip xray
+          chmod +x xray
+      - name: Run real traffic tester
+        run: python3 scanner.py
       - name: Publish mirror
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add sub/ nodes.json
-          git diff --staged --quiet || (git commit -m "Update subscription" && git push)
+          git diff --staged --quiet || (git commit -m "Update verified nodes" && git push)
