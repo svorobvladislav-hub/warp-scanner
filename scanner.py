@@ -1,8 +1,5 @@
-import socket, random, json, os, urllib.request, urllib.parse, base64, time
-from datetime import datetime, timezone
+import socket, random, json, os, urllib.request, urllib.parse, base64, time, subprocess, struct
 from concurrent.futures import ThreadPoolExecutor
-from cryptography.hazmat.primitives.asymmetric import x25519
-from cryptography.hazmat.primitives import serialization
 
 SOURCES = [
     "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/refs/heads/main/V2Ray-Config-By-EbraSha.txt",
@@ -14,32 +11,15 @@ SOURCES = [
 ]
 
 COUNTRY_NAMES = {
-    "DE": "🇩🇪 Германия",
-    "NL": "🇳🇱 Нидерланды",
-    "FI": "🇫🇮 Финляндия",
-    "SE": "🇸🇪 Швеция",
-    "PL": "🇵🇱 Польша",
-    "GB": "🇬🇧 Великобритания",
-    "US": "🇺🇸 США",
-    "FR": "🇫🇷 Франция",
-    "CH": "🇨🇭 Швейцария",
-    "AT": "🇦🇹 Австрия",
-    "CZ": "🇨🇿 Чехия",
-    "LV": "🇱🇻 Латвия",
-    "EE": "🇪🇪 Эстония",
-    "LT": "🇱🇹 Литва",
-    "KZ": "🇰🇿 Казахстан",
-    "TR": "🇹🇷 Турция",
-    "NO": "🇳🇴 Норвегия",
-    "DK": "🇩🇰 Дания",
-    "CA": "🇨🇦 Канада",
-    "SG": "🇸🇬 Сингапур",
-    "JP": "🇯🇵 Япония"
+    "DE": "🇩🇪 Германия", "NL": "🇳🇱 Нидерланды", "FI": "🇫🇮 Финляндия",
+    "SE": "🇸🇪 Швеция", "PL": "🇵🇱 Польша", "GB": "🇬🇧 Великобритания",
+    "US": "🇺🇸 США", "FR": "🇫🇷 Франция", "CH": "🇨🇭 Швейцария",
+    "AT": "🇦🇹 Австрия", "CZ": "🇨🇿 Чехия", "LV": "🇱🇻 Латвия",
+    "EE": "🇪🇪 Эстония", "LT": "🇱🇹 Литва", "KZ": "🇰🇿 Казахстан",
+    "TR": "🇹🇷 Турция", "NO": "🇳🇴 Норвегия", "DK": "🇩🇰 Дания",
+    "CA": "🇨🇦 Канада", "SG": "🇸🇬 Сингапур", "JP": "🇯🇵 Япония"
 }
 
-SUBNETS = ["162.159.192.", "162.159.193.", "162.159.195.", "188.114.96.", "188.114.97."]
-PORTS = [854, 859, 864, 894, 908, 2408, 1701, 4500]
-WG_HANDSHAKE = bytes.fromhex("01000000" + "00" * 144)
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 def fetch_lines(url):
@@ -56,33 +36,155 @@ def fetch_lines(url):
     except Exception:
         return []
 
-def parse_vless_reality(uri):
-    if not uri.startswith("vless://") or "security=reality" not in uri:
+def parse_vless(uri):
+    if not uri.startswith("vless://"):
         return None
     try:
         base_uri = uri.split("#", 1)[0]
-        parsed = urllib.parse.urlsplit(base_uri)
-        host = parsed.hostname
-        port = parsed.port or 443
-        if not host or host in ("127.0.0.1", "0.0.0.0", "localhost"):
+        p = urllib.parse.urlsplit(base_uri)
+        uuid = p.username
+        host = p.hostname
+        port = p.port or 443
+        if not uuid or not host or host in ("127.0.0.1", "0.0.0.0", "localhost"):
             return None
-        return (host, port, base_uri)
+        q = dict(urllib.parse.parse_qsl(p.query))
+        sec = q.get("security", "none")
+        net = q.get("type", "tcp")
+        if sec not in ("reality", "tls"):
+            return None
+        if sec == "reality" and not q.get("pbk"):
+            return None
+
+        outbound = {
+            "protocol": "vless",
+            "settings": {
+                "vnext": [{
+                    "address": host,
+                    "port": port,
+                    "users": [{
+                        "id": uuid,
+                        "encryption": "none",
+                        "flow": q.get("flow", "")
+                    }]
+                }]
+            },
+            "streamSettings": {
+                "network": net,
+                "security": sec
+            }
+        }
+
+        if sec == "reality":
+            outbound["streamSettings"]["realitySettings"] = {
+                "serverName": q.get("sni", ""),
+                "fingerprint": q.get("fp", "chrome"),
+                "publicKey": q.get("pbk", ""),
+                "shortId": q.get("sid", ""),
+                "spiderX": q.get("spx", "/")
+            }
+        elif sec == "tls":
+            outbound["streamSettings"]["tlsSettings"] = {
+                "serverName": q.get("sni", host),
+                "fingerprint": q.get("fp", "chrome"),
+                "allowInsecure": True
+            }
+
+        if net == "ws":
+            outbound["streamSettings"]["wsSettings"] = {
+                "path": q.get("path", "/"),
+                "headers": {"Host": q.get("host", q.get("sni", host))}
+            }
+        elif net == "grpc":
+            outbound["streamSettings"]["grpcSettings"] = {
+                "serviceName": q.get("serviceName", "")
+            }
+
+        return {"host": host, "port": port, "uri": base_uri, "outbound": outbound}
     except Exception:
         return None
 
-def check_tcp(item):
-    host, port, base_uri = item
-    t0 = time.monotonic()
+def tcp_ping(node):
     try:
-        with socket.create_connection((host, port), timeout=1.5):
-            ms = int((time.monotonic() - t0) * 1000)
-            return (ms, host, port, base_uri)
+        with socket.create_connection((node["host"], node["port"]), timeout=1.2):
+            return node
     except Exception:
         return None
+
+def test_socks_traffic(args):
+    port, node = args
+    t0 = time.monotonic()
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(4.0)
+    try:
+        s.connect(("127.0.0.1", port))
+        s.sendall(b"\x05\x01\x00")
+        if s.recv(2) != b"\x05\x00":
+            return None
+        target = b"cp.cloudflare.com"
+        req = b"\x05\x01\x00\x03" + bytes([len(target)]) + target + struct.pack(">H", 80)
+        s.sendall(req)
+        resp = s.recv(10)
+        if len(resp) < 2 or resp[1] != 0:
+            return None
+        s.sendall(b"GET /generate_204 HTTP/1.1\r\nHost: cp.cloudflare.com\r\nConnection: close\r\n\r\n")
+        data = s.recv(256)
+        if b"204" in data or b"200" in data:
+            ms = int((time.monotonic() - t0) * 1000)
+            return (ms, node)
+    except Exception:
+        return None
+    finally:
+        s.close()
+    return None
+
+def verify_batch_with_xray(nodes):
+    verified = []
+    batch_size = 35
+    for i in range(0, len(nodes), batch_size):
+        batch = nodes[i:i + batch_size]
+        inbounds = []
+        outbounds = []
+        rules = []
+        for idx, n in enumerate(batch):
+            local_port = 21000 + idx
+            in_tag = f"in_{idx}"
+            out_tag = f"out_{idx}"
+            inbounds.append({
+                "tag": in_tag, "port": local_port, "listen": "127.0.0.1",
+                "protocol": "socks", "settings": {"auth": "noauth", "udp": False}
+            })
+            out = json.loads(json.dumps(n["outbound"]))
+            out["tag"] = out_tag
+            outbounds.append(out)
+            rules.append({"type": "field", "inboundTag": [in_tag], "outboundTag": out_tag})
+
+        cfg = {
+            "log": {"loglevel": "none"},
+            "inbounds": inbounds,
+            "outbounds": outbounds,
+            "routing": {"rules": rules}
+        }
+        with open("test_xray.json", "w") as f:
+            json.dump(cfg, f)
+
+        proc = subprocess.Popen(["./xray", "-c", "test_xray.json"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(1.5)
+        try:
+            tasks = [(21000 + idx, n) for idx, n in enumerate(batch)]
+            with ThreadPoolExecutor(max_workers=20) as ex:
+                for res in ex.map(test_socks_traffic, tasks):
+                    if res:
+                        verified.append(res)
+        finally:
+            proc.terminate()
+            proc.wait()
+        if len(verified) >= 25:
+            break
+    return verified
 
 def resolve_countries(hosts):
     mapping = {}
-    unique_hosts = list(set(hosts))[:90]
+    unique_hosts = list(set(hosts))[:80]
     if not unique_hosts:
         return mapping
     try:
@@ -93,45 +195,44 @@ def resolve_countries(hosts):
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=12) as resp:
-            results = json.loads(resp.read().decode())
-        for r in results:
-            if r.get("status") == "success":
-                code = r.get("countryCode", "")
-                mapping[r["query"]] = COUNTRY_NAMES.get(code, f"🌍 Европа ({code})")
+            for r in json.loads(resp.read().decode()):
+                if r.get("status") == "success":
+                    code = r.get("countryCode", "")
+                    mapping[r["query"]] = COUNTRY_NAMES.get(code, f"🌍 Европа ({code})")
     except Exception:
         pass
     return mapping
 
-def build_vless_subscriptions():
+def main():
     all_lines = []
     with ThreadPoolExecutor(max_workers=6) as ex:
         for lines in ex.map(fetch_lines, SOURCES):
             all_lines.extend(lines)
 
     seen = set()
-    candidates = []
+    parsed_nodes = []
     for line in all_lines:
-        parsed = parse_vless_reality(line)
-        if parsed:
-            key = (parsed[0], parsed[1])
+        n = parse_vless(line)
+        if n:
+            key = (n["host"], n["port"], n["uri"][:55])
             if key not in seen:
                 seen.add(key)
-                candidates.append(parsed)
+                parsed_nodes.append(n)
 
-    random.shuffle(candidates)
-    candidates = candidates[:300]
-
+    random.shuffle(parsed_nodes)
     with ThreadPoolExecutor(max_workers=60) as ex:
-        alive = list(filter(None, ex.map(check_tcp, candidates)))
+        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:350])))
 
-    alive.sort(key=lambda x: x[0])
-    top_nodes = alive[:50]
-    geo = resolve_countries([x[1] for x in top_nodes])
+    print(f"TCP alive: {len(tcp_alive)}, testing real traffic via Xray...")
+    verified = verify_batch_with_xray(tcp_alive[:140])
+    verified.sort(key=lambda x: x[0])
+    print(f"Real traffic passed: {len(verified)} nodes!")
 
+    geo = resolve_countries([n["host"] for _, n in verified])
     by_country = {}
-    for ms, host, port, base_uri in top_nodes:
-        country = geo.get(host, "🇪🇺 Европа")
-        by_country.setdefault(country, []).append((ms, base_uri))
+    for ms, n in verified:
+        country = geo.get(n["host"], "🇪🇺 Европа")
+        by_country.setdefault(country, []).append((ms, n["uri"]))
 
     free_links = []
     pro_links = []
@@ -143,7 +244,7 @@ def build_vless_subscriptions():
             label = f"{country} #{idx} ({ms}ms) • The Last VPN"
             full_uri = f"{base_uri}#{urllib.parse.quote(label)}"
             pro_links.append(full_uri)
-            if idx == 1 and len(free_links) < 6:
+            if idx == 1 and len(free_links) < 8:
                 free_links.append(full_uri)
             countries_json[country].append({"uri": full_uri, "latency": ms})
 
@@ -155,69 +256,5 @@ def build_vless_subscriptions():
     with open("nodes.json", "w", encoding="utf-8") as f:
         json.dump({"updated": int(time.time()), "countries": countries_json}, f, ensure_ascii=False, indent=2)
 
-    print(f"VLESS Reality ready: {len(free_links)} free, {len(pro_links)} pro across {len(by_country)} countries")
-
-def update_warp_worker():
-    base_url = os.environ.get("WORKER_URL", "").rstrip("/")
-    secret = os.environ.get("ADMIN_SECRET", "")
-    if not base_url or not secret:
-        return
-    try:
-        candidates = [(f"{sub}{random.randint(1, 254)}", random.choice(PORTS)) for sub in SUBNETS for _ in range(40)]
-        unique_ips = [f"{ip}:{port}" for ip, port in candidates[:80]]
-
-        priv = x25519.X25519PrivateKey.generate()
-        priv_b64 = base64.b64encode(priv.private_bytes(
-            serialization.Encoding.Raw, serialization.PrivateFormat.Raw, serialization.NoEncryption()
-        )).decode()
-        pub_b64 = base64.b64encode(priv.public_key().public_bytes(
-            serialization.Encoding.Raw, serialization.PublicFormat.Raw
-        )).decode()
-
-        payload = json.dumps({
-            "key": pub_b64,
-            "install_id": "",
-            "fcm_token": "",
-            "tos": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-            "model": "Android",
-            "serial_number": "",
-            "locale": "en_US"
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            "https://api.cloudflareclient.com/v0a2158/reg",
-            data=payload,
-            headers={
-                "Content-Type": "application/json; charset=UTF-8",
-                "User-Agent": "okhttp/3.12.1",
-                "CF-Client-Version": "a-6.11-2223"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            data = json.loads(resp.read().decode())
-
-        cid = base64.b64decode(data["config"]["client_id"])
-        creds = {
-            "privateKey": priv_b64,
-            "peerPublicKey": data["config"]["peers"][0]["public_key"],
-            "v4": data["config"]["interface"]["addresses"]["v4"],
-            "v6": data["config"]["interface"]["addresses"]["v6"],
-            "reserved": [cid[0], cid[1], cid[2]]
-        }
-
-        for body in ({"type": "raw_ips", "ips": unique_ips}, {"type": "warp_creds", "creds": creds}):
-            r = urllib.request.Request(
-                base_url + "/admin/update",
-                data=json.dumps(body).encode("utf-8"),
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {secret}", "User-Agent": UA},
-                method="POST"
-            )
-            urllib.request.urlopen(r, timeout=12).read()
-        print("WARP pool synced!")
-    except Exception as e:
-        print("WARP sync skipped:", e)
-
 if __name__ == "__main__":
-    build_vless_subscriptions()
-    update_warp_worker()
+    main()
