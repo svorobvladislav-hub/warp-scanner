@@ -40,6 +40,8 @@ def fetch_lines(url):
         return []
 
 def is_valid_pbk(pbk):
+    if not pbk or any(c in pbk for c in " \t\r\n+/="):
+        pass
     try:
         raw = base64.urlsafe_b64decode(pbk + "=" * (-len(pbk) % 4))
         return len(raw) == 32
@@ -51,42 +53,50 @@ def is_valid_sid(sid):
         return False
     return all(c in "0123456789abcdefABCDEF" for c in sid)
 
+def is_valid_uuid(u):
+    if len(u) != 36:
+        return False
+    parts = u.split("-")
+    if [len(x) for x in parts] != [8, 4, 4, 4, 12]:
+        return False
+    return all(c in "0123456789abcdefABCDEF-" for c in u)
+
 def parse_uri(uri):
     if not (uri.startswith("vless://") or uri.startswith("trojan://")):
         return None
     try:
-        base_uri = uri.split("#", 1)[0]
+        base_uri = uri.split("#", 1)[0].strip()
         p = urllib.parse.urlsplit(base_uri)
         proto = p.scheme
-        cred = urllib.parse.unquote(p.username or "")
-        host = p.hostname
+        cred = urllib.parse.unquote(p.username or "").strip()
+        host = (p.hostname or "").strip()
         port = p.port or 443
-        if not cred or not host or host in ("127.0.0.1", "0.0.0.0", "localhost"):
+        if not cred or not host or not (1 <= port <= 65535) or host in ("127.0.0.1", "0.0.0.0", "localhost"):
             return None
 
         q = dict(urllib.parse.parse_qsl(p.query))
-        sec = q.get("security", "tls" if proto == "trojan" else "none")
-        net = q.get("type", "tcp")
+        sec = (q.get("security") or ("tls" if proto == "trojan" else "none")).lower()
+        net = (q.get("type") or "tcp").lower()
 
-        if sec not in ("reality", "tls") or net not in ("tcp", "ws", "grpc", "xhttp", "httpupgrade"):
+        if sec not in ("reality", "tls") or net not in ("tcp", "ws", "grpc"):
             return None
 
-        fp = q.get("fp", "chrome")
+        fp = (q.get("fp") or "chrome").lower()
         if fp not in VALID_FPS:
             fp = "chrome"
 
         if sec == "reality":
-            pbk = q.get("pbk", "")
-            sid = q.get("sid", "")
-            sni = q.get("sni", "")
+            pbk = (q.get("pbk") or "").strip()
+            sid = (q.get("sid") or "").strip()
+            sni = (q.get("sni") or "").strip()
             if not sni or not is_valid_pbk(pbk) or not is_valid_sid(sid):
                 return None
 
         if proto == "vless":
-            if len(cred) != 36 or cred.count("-") != 4:
+            if not is_valid_uuid(cred):
                 return None
-            flow = q.get("flow", "")
-            if flow not in ("", "xtls-rprx-vision", "xtls-rprx-vision-udp443"):
+            flow = (q.get("flow") or "").strip()
+            if net != "tcp" or flow not in ("", "xtls-rprx-vision", "xtls-rprx-vision-udp443"):
                 flow = ""
             outbound = {
                 "protocol": "vless",
@@ -110,33 +120,29 @@ def parse_uri(uri):
 
         if sec == "reality":
             outbound["streamSettings"]["realitySettings"] = {
-                "serverName": q.get("sni", ""),
+                "serverName": q.get("sni", "").strip(),
                 "fingerprint": fp,
-                "publicKey": q.get("pbk", ""),
-                "shortId": q.get("sid", ""),
-                "spiderX": q.get("spx", "/")
+                "publicKey": q.get("pbk", "").strip(),
+                "shortId": q.get("sid", "").strip(),
+                "spiderX": q.get("spx") or "/"
             }
         elif sec == "tls":
             outbound["streamSettings"]["tlsSettings"] = {
-                "serverName": q.get("sni", host),
+                "serverName": (q.get("sni") or host).strip(),
                 "fingerprint": fp,
                 "allowInsecure": True
             }
 
         if net == "ws":
             outbound["streamSettings"]["wsSettings"] = {
-                "path": q.get("path", "/"),
-                "headers": {"Host": q.get("host", q.get("sni", host))}
+                "path": q.get("path") or "/",
+                "headers": {"Host": (q.get("host") or q.get("sni") or host).strip()}
             }
         elif net == "grpc":
-            outbound["streamSettings"]["grpcSettings"] = {
-                "serviceName": q.get("serviceName", "")
-            }
-        elif net == "httpupgrade":
-            outbound["streamSettings"]["httpupgradeSettings"] = {
-                "path": q.get("path", "/"),
-                "host": q.get("host", q.get("sni", host))
-            }
+            svc = (q.get("serviceName") or "").strip()
+            if not svc:
+                return None
+            outbound["streamSettings"]["grpcSettings"] = {"serviceName": svc}
 
         return {"host": host, "port": port, "uri": base_uri, "outbound": outbound}
     except Exception:
@@ -176,52 +182,60 @@ def test_socks_traffic(args):
         s.close()
     return None
 
-def verify_batch_with_xray(nodes):
+def run_xray_batch(batch):
+    if not batch:
+        return []
+    inbounds, outbounds, rules = [], [], []
+    for idx, n in enumerate(batch):
+        local_port = 21000 + idx
+        in_tag = f"in_{idx}"
+        out_tag = f"out_{idx}"
+        inbounds.append({
+            "tag": in_tag, "port": local_port, "listen": "127.0.0.1",
+            "protocol": "socks", "settings": {"auth": "noauth", "udp": False}
+        })
+        out = json.loads(json.dumps(n["outbound"]))
+        out["tag"] = out_tag
+        outbounds.append(out)
+        rules.append({"type": "field", "inboundTag": [in_tag], "outboundTag": out_tag})
+
+    cfg = {
+        "log": {"loglevel": "error"},
+        "inbounds": inbounds,
+        "outbounds": outbounds,
+        "routing": {"rules": rules}
+    }
+    with open("test_xray.json", "w") as f:
+        json.dump(cfg, f)
+
+    proc = subprocess.Popen(["./xray", "run", "-c", "test_xray.json"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    time.sleep(1.6)
+    if proc.poll() is not None:
+        out_err = proc.stdout.read().decode("utf-8", errors="ignore").strip()
+        if len(batch) == 1:
+            return []
+        if len(batch) >= 10:
+            print(f"Splitting bad batch ({len(batch)}): {out_err.splitlines()[-1] if out_err else 'exit'}")
+        mid = len(batch) // 2
+        return run_xray_batch(batch[:mid]) + run_xray_batch(batch[mid:])
+
+    passed = []
+    try:
+        tasks = [(21000 + idx, n) for idx, n in enumerate(batch)]
+        with ThreadPoolExecutor(max_workers=25) as ex:
+            for res in ex.map(test_socks_traffic, tasks):
+                if res:
+                    passed.append(res)
+    finally:
+        proc.terminate()
+        proc.wait()
+    return passed
+
+def verify_nodes(nodes):
     verified = []
-    batch_size = 40
+    batch_size = 30
     for i in range(0, len(nodes), batch_size):
-        batch = nodes[i:i + batch_size]
-        inbounds = []
-        outbounds = []
-        rules = []
-        for idx, n in enumerate(batch):
-            local_port = 21000 + idx
-            in_tag = f"in_{idx}"
-            out_tag = f"out_{idx}"
-            inbounds.append({
-                "tag": in_tag, "port": local_port, "listen": "127.0.0.1",
-                "protocol": "socks", "settings": {"auth": "noauth", "udp": False}
-            })
-            out = json.loads(json.dumps(n["outbound"]))
-            out["tag"] = out_tag
-            outbounds.append(out)
-            rules.append({"type": "field", "inboundTag": [in_tag], "outboundTag": out_tag})
-
-        cfg = {
-            "log": {"loglevel": "error"},
-            "inbounds": inbounds,
-            "outbounds": outbounds,
-            "routing": {"rules": rules}
-        }
-        with open("test_xray.json", "w") as f:
-            json.dump(cfg, f)
-
-        proc = subprocess.Popen(["./xray", "-c", "test_xray.json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        time.sleep(1.8)
-        if proc.poll() is not None:
-            err = proc.stderr.read().decode("utf-8", errors="ignore")
-            print("Xray batch error:", err[:300])
-            continue
-
-        try:
-            tasks = [(21000 + idx, n) for idx, n in enumerate(batch)]
-            with ThreadPoolExecutor(max_workers=25) as ex:
-                for res in ex.map(test_socks_traffic, tasks):
-                    if res:
-                        verified.append(res)
-        finally:
-            proc.terminate()
-            proc.wait()
+        verified.extend(run_xray_batch(nodes[i:i + batch_size]))
         print(f"Batch {i // batch_size + 1}: total verified = {len(verified)}")
         if len(verified) >= 25:
             break
@@ -270,7 +284,7 @@ def main():
         tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:800])))
 
     print(f"TCP alive: {len(tcp_alive)}, testing real traffic via Xray...")
-    verified = verify_batch_with_xray(tcp_alive[:400])
+    verified = verify_nodes(tcp_alive[:360])
     verified.sort(key=lambda x: x[0])
     print(f"Real traffic passed: {len(verified)} nodes!")
 
