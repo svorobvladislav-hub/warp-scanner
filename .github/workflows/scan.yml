@@ -13,4 +13,6 @@ jobs:
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
-        run: python3 scanner.py
+        run: |
+          pip install cryptography
+          python3 scanner.py
