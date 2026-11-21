@@ -23,10 +23,12 @@ jobs:
       - name: Probe VLESS nodes in parallel with Xray-core
         run: |
           python3 - << 'EOF'
-          import concurrent.futures, json, os, subprocess, threading, time, urllib.request, urllib.parse
+          import base64, concurrent.futures, json, os, subprocess, threading, time, urllib.request, urllib.parse
 
-          TARGET_COUNT = 18
+          TARGET_COUNT = 24
           SOURCES = [
+            "https://cdn.jsdelivr.net/gh/0xRadikal/Free-v2ray-Configs@main/top100.txt",
+            "https://cdn.jsdelivr.net/gh/hamedcode/port-based-v2ray-configs@main/sub/vless.txt",
             "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/main/subscriptions/filtered/subs/vless.txt",
             "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/Splitted-By-Protocol/vless.txt",
             "https://raw.githubusercontent.com/barry-far/V2ray-config/main/Splitted-By-Protocol/vless.txt"
@@ -48,12 +50,35 @@ jobs:
             try:
               u = urllib.parse.urlparse(uri)
               qs = urllib.parse.parse_qs(u.query)
-              if qs.get("security", [""])[0].lower() != "reality":
-                return None
-              pbk = qs.get("pbk", [""])[0]
+              sec = qs.get("security", [""])[0].lower()
+              net = qs.get("type", ["tcp"])[0].lower()
               sni = qs.get("sni", [""])[0]
-              if len(pbk) < 40 or not sni or not u.hostname:
+              if not u.hostname or not u.username or net not in ("tcp", "grpc", "ws", "xhttp"):
                 return None
+
+              stream = {"network": net, "security": sec}
+              if sec == "reality":
+                pbk = qs.get("pbk", [""])[0]
+                if len(pbk) < 40 or not sni:
+                  return None
+                stream["realitySettings"] = {
+                  "serverName": sni,
+                  "fingerprint": qs.get("fp", ["firefox"])[0],
+                  "publicKey": pbk,
+                  "shortId": qs.get("sid", [""])[0]
+                }
+              elif sec == "tls":
+                stream["tlsSettings"] = {
+                  "serverName": sni or u.hostname,
+                  "allowInsecure": True
+                }
+              else:
+                return None
+
+              if net == "ws":
+                stream["wsSettings"] = {"path": qs.get("path", ["/"])[0], "headers": {"Host": qs.get("host", [sni or u.hostname])[0]}}
+              elif net == "grpc":
+                stream["grpcSettings"] = {"serviceName": qs.get("serviceName", [""])[0]}
 
               cfg = {
                 "log": {"loglevel": "none"},
@@ -61,24 +86,14 @@ jobs:
                 "outbounds": [{
                   "protocol": "vless",
                   "settings": {"vnext": [{"address": u.hostname, "port": u.port or 443, "users": [{"id": u.username, "encryption": "none", "flow": qs.get("flow", [""])[0]}]}]},
-                  "streamSettings": {
-                    "network": qs.get("type", ["tcp"])[0],
-                    "security": "reality",
-                    "realitySettings": {
-                      "serverName": sni,
-                      "fingerprint": qs.get("fp", ["firefox"])[0],
-                      "publicKey": pbk,
-                      "shortId": qs.get("sid", [""])[0]
-                    }
-                  }
+                  "streamSettings": stream
                 }]
               }
               with open(cfg_file, "w") as f:
                 json.dump(cfg, f)
               proc = subprocess.Popen(["./xray", "-c", cfg_file], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-              time.sleep(0.9)
+              time.sleep(0.8)
 
-              # 1. Проверяем реальный выход в интернет (generate_204)
               r204 = subprocess.run(
                 ["curl", "-sS", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "4", "--socks5-hostname", f"127.0.0.1:{port}", "https://cp.cloudflare.com/generate_204"],
                 capture_output=True, text=True
@@ -86,7 +101,6 @@ jobs:
               if r204.returncode != 0 or r204.stdout.strip() not in ("204", "200"):
                 return None
 
-              # 2. Определяем реальную страну выходного IP
               r_geo = subprocess.run(
                 ["curl", "-sS", "--max-time", "4", "--socks5-hostname", f"127.0.0.1:{port}", "https://api.country.is"],
                 capture_output=True, text=True
@@ -108,7 +122,6 @@ jobs:
           seen = set()
           country_counts = {}
 
-          # 1. Перепроверяем старые рабочие ноды параллельно
           existing = []
           if os.path.exists("verified_vless.txt"):
             for line in open("verified_vless.txt", encoding="utf-8"):
@@ -118,7 +131,7 @@ jobs:
                 existing.append(uri)
 
           if existing:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=15) as ex:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as ex:
               for res in ex.map(test_vless_with_xray, existing):
                 if res and len(working) < TARGET_COUNT:
                   uri, cc = res
@@ -127,30 +140,35 @@ jobs:
                     working.append(f"{uri}#{cc}")
                     print("KEEP:", cc, uri.split("@")[1].split("?")[0])
 
-          # 2. Добираем свежие из 360 кандидатов в 20 потоков
           if len(working) < TARGET_COUNT:
             cands = []
             for url in SOURCES:
               try:
                 raw = urllib.request.urlopen(url, timeout=8).read().decode("utf-8", "ignore")
+                if "vless://" not in raw:
+                  try:
+                    raw = base64.b64decode(raw.strip()).decode("utf-8", "ignore")
+                  except Exception:
+                    pass
                 cnt = 0
                 for line in raw.splitlines():
                   uri = line.strip().split("#")[0]
-                  if uri.startswith("vless://") and "security=reality" in uri and uri not in seen:
+                  if uri.startswith("vless://") and uri not in seen:
                     cands.append(uri)
                     seen.add(uri)
                     cnt += 1
-                    if cnt >= 120:
+                    if cnt >= 100:
                       break
               except Exception:
                 pass
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=20) as ex:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=25) as ex:
               for res in ex.map(test_vless_with_xray, cands):
                 if res and len(working) < TARGET_COUNT:
                   uri, cc = res
                   if country_counts.get(cc, 0) < 2:
-                    country_counts[cc] = country_counts.get(cc, 0) + 1
+                    countryCount = country_counts.get(cc, 0) + 1
+                    country_counts[cc] = countryCount
                     working.append(f"{uri}#{cc}")
                     print("NEW:", cc, uri.split("@")[1].split("?")[0])
 
