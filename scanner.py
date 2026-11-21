@@ -10,7 +10,8 @@ SOURCES = [
     "https://raw.githubusercontent.com/yebekhe/TVC/main/subscriptions/xray/normal/trojan",
     "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/Protocols/vless.txt",
     "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/Protocols/trojan.txt",
-    "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt"
+    "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
+    "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt"
 ]
 
 COUNTRY_NAMES = {
@@ -23,6 +24,7 @@ COUNTRY_NAMES = {
     "CA": "🇨🇦 Канада", "SG": "🇸🇬 Сингапур", "JP": "🇯🇵 Япония"
 }
 
+VALID_FPS = {"chrome", "firefox", "safari", "ios", "android", "edge", "360", "qq", "random", "randomized"}
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 def fetch_lines(url):
@@ -31,13 +33,23 @@ def fetch_lines(url):
         with urllib.request.urlopen(req, timeout=12) as resp:
             raw = resp.read().decode("utf-8", errors="ignore").strip()
         if "://" not in raw:
-            pad = len(raw) % 4
-            if pad:
-                raw += "=" * (4 - pad)
+            raw += "=" * (-len(raw) % 4)
             raw = base64.b64decode(raw).decode("utf-8", errors="ignore")
         return [line.strip() for line in raw.splitlines() if line.strip()]
     except Exception:
         return []
+
+def is_valid_pbk(pbk):
+    try:
+        raw = base64.urlsafe_b64decode(pbk + "=" * (-len(pbk) % 4))
+        return len(raw) == 32
+    except Exception:
+        return False
+
+def is_valid_sid(sid):
+    if len(sid) > 16 or len(sid) % 2 != 0:
+        return False
+    return all(c in "0123456789abcdefABCDEF" for c in sid)
 
 def parse_uri(uri):
     if not (uri.startswith("vless://") or uri.startswith("trojan://")):
@@ -56,19 +68,33 @@ def parse_uri(uri):
         sec = q.get("security", "tls" if proto == "trojan" else "none")
         net = q.get("type", "tcp")
 
-        if sec not in ("reality", "tls"):
-            return None
-        if sec == "reality" and not q.get("pbk"):
+        if sec not in ("reality", "tls") or net not in ("tcp", "ws", "grpc", "xhttp", "httpupgrade"):
             return None
 
+        fp = q.get("fp", "chrome")
+        if fp not in VALID_FPS:
+            fp = "chrome"
+
+        if sec == "reality":
+            pbk = q.get("pbk", "")
+            sid = q.get("sid", "")
+            sni = q.get("sni", "")
+            if not sni or not is_valid_pbk(pbk) or not is_valid_sid(sid):
+                return None
+
         if proto == "vless":
+            if len(cred) != 36 or cred.count("-") != 4:
+                return None
+            flow = q.get("flow", "")
+            if flow not in ("", "xtls-rprx-vision", "xtls-rprx-vision-udp443"):
+                flow = ""
             outbound = {
                 "protocol": "vless",
                 "settings": {
                     "vnext": [{
                         "address": host,
                         "port": port,
-                        "users": [{"id": cred, "encryption": "none", "flow": q.get("flow", "")}]
+                        "users": [{"id": cred, "encryption": "none", "flow": flow}]
                     }]
                 },
                 "streamSettings": {"network": net, "security": sec}
@@ -85,7 +111,7 @@ def parse_uri(uri):
         if sec == "reality":
             outbound["streamSettings"]["realitySettings"] = {
                 "serverName": q.get("sni", ""),
-                "fingerprint": q.get("fp", "chrome"),
+                "fingerprint": fp,
                 "publicKey": q.get("pbk", ""),
                 "shortId": q.get("sid", ""),
                 "spiderX": q.get("spx", "/")
@@ -93,7 +119,7 @@ def parse_uri(uri):
         elif sec == "tls":
             outbound["streamSettings"]["tlsSettings"] = {
                 "serverName": q.get("sni", host),
-                "fingerprint": q.get("fp", "chrome"),
+                "fingerprint": fp,
                 "allowInsecure": True
             }
 
@@ -105,6 +131,11 @@ def parse_uri(uri):
         elif net == "grpc":
             outbound["streamSettings"]["grpcSettings"] = {
                 "serviceName": q.get("serviceName", "")
+            }
+        elif net == "httpupgrade":
+            outbound["streamSettings"]["httpupgradeSettings"] = {
+                "path": q.get("path", "/"),
+                "host": q.get("host", q.get("sni", host))
             }
 
         return {"host": host, "port": port, "uri": base_uri, "outbound": outbound}
@@ -147,7 +178,7 @@ def test_socks_traffic(args):
 
 def verify_batch_with_xray(nodes):
     verified = []
-    batch_size = 50
+    batch_size = 40
     for i in range(0, len(nodes), batch_size):
         batch = nodes[i:i + batch_size]
         inbounds = []
@@ -159,7 +190,7 @@ def verify_batch_with_xray(nodes):
             out_tag = f"out_{idx}"
             inbounds.append({
                 "tag": in_tag, "port": local_port, "listen": "127.0.0.1",
-                "protocol": "socks", "settings": {"auth: ": "noauth", "auth": "noauth", "udp": False}
+                "protocol": "socks", "settings": {"auth": "noauth", "udp": False}
             })
             out = json.loads(json.dumps(n["outbound"]))
             out["tag"] = out_tag
@@ -167,7 +198,7 @@ def verify_batch_with_xray(nodes):
             rules.append({"type": "field", "inboundTag": [in_tag], "outboundTag": out_tag})
 
         cfg = {
-            "log": {"loglevel": "none"},
+            "log": {"loglevel": "error"},
             "inbounds": inbounds,
             "outbounds": outbounds,
             "routing": {"rules": rules}
@@ -175,8 +206,13 @@ def verify_batch_with_xray(nodes):
         with open("test_xray.json", "w") as f:
             json.dump(cfg, f)
 
-        proc = subprocess.Popen(["./xray", "-c", "test_xray.json"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(2.0)
+        proc = subprocess.Popen(["./xray", "-c", "test_xray.json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(1.8)
+        if proc.poll() is not None:
+            err = proc.stderr.read().decode("utf-8", errors="ignore")
+            print("Xray batch error:", err[:300])
+            continue
+
         try:
             tasks = [(21000 + idx, n) for idx, n in enumerate(batch)]
             with ThreadPoolExecutor(max_workers=25) as ex:
@@ -228,18 +264,18 @@ def main():
                 seen.add(key)
                 parsed_nodes.append(n)
 
-    print(f"Parsed total: {len(parsed_nodes)}")
+    print(f"Valid parsed nodes: {len(parsed_nodes)}")
     random.shuffle(parsed_nodes)
     with ThreadPoolExecutor(max_workers=80) as ex:
-        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:700])))
+        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:800])))
 
     print(f"TCP alive: {len(tcp_alive)}, testing real traffic via Xray...")
-    verified = verify_batch_with_xray(tcp_alive[:350])
+    verified = verify_batch_with_xray(tcp_alive[:400])
     verified.sort(key=lambda x: x[0])
     print(f"Real traffic passed: {len(verified)} nodes!")
 
     if not verified:
-        print("No verified nodes in this run, keeping previous list.")
+        print("No verified nodes in this run.")
         return
 
     geo = resolve_countries([n["host"] for _, n in verified])
