@@ -1,1 +1,154 @@
-dmxlc3M6Ly8wMDAwMDAwMC0wMDAwLTAwMDAtMDAwMC0wMDAwMDAwMDAwMDBAMTI3LjAuMC4xOjQ0Mz90eXBlPXRjcCMlRTIlOUElQTElRUYlQjglOEYlMjBUaGUlMjBMYXN0JTIwVlBOJTIwJUUyJTgwJUEyJTIwJUQwJUEyJUQwJUIwJUQxJTgwJUQwJUI4JUQxJTg0JTNBJTIwRlJFRQp3aXJlZ3VhcmQ6Ly9TSUpWTlFoJTJGZ2tTYmRUTmZGcWtDR2RKT0pHQmpmNkNseWxvVTg3SUJDbmMlM0RAMTYyLjE1OS4xOTIuMToyNDA4P3B1YmxpY2tleT1ibVhPQyUyQkYxRnhFTUY5ZHlpSzJINSUyRjFTVXR6SDBKdVZvNTFoMndQZmd5byUzRCZhZGRyZXNzPTE3Mi4xNi4wLjIlMkYzMiUyQzI2MDYlM0E0NzAwJTNBMTEwJTNBOGNmZSUzQTk3MDAlM0FlNGNjJTNBNGNmZCUzQTNjZDAlMkYxMjgmbXR1PTEyODAmcmVzZXJ2ZWQ9MTk4JTJDMTc4JTJDMjYmamM9NCZqbWluPTQwJmptYXg9NzAjJUYwJTlGJTg3JUE5JUYwJTlGJTg3JUFBJTIwJUQwJTkzJUQwJUI1JUQxJTgwJUQwJUJDJUQwJUIwJUQwJUJEJUQwJUI4JUQxJThGJTIwJTIzMSUyMCU1QkFJJTVEJTIwKDcybXMpCndpcmVndWFyZDovL1NJSlZOUWglMkZna1NiZFROZkZxa0NHZEpPSkdCamY2Q2x5bG9VODdJQkNuYyUzREAxNjIuMTU5LjE5My4xMDo4NTQ/cHVibGlja2V5PWJtWE9DJTJCRjFGeEVNRjlkeWlLMkg1JTJGMVNVdHpIMEp1Vm81MWgyd1BmZ3lvJTNEJmFkZHJlc3M9MTcyLjE2LjAuMiUyRjMyJTJDMjYwNiUzQTQ3MDAlM0ExMTAlM0E4Y2ZlJTNBOTcwMCUzQWU0Y2MlM0E0Y2ZkJTNBM2NkMCUyRjEyOCZtdHU9MTI4MCZyZXNlcnZlZD0xOTglMkMxNzglMkMyNiZqYz00JmptaW49NDAmam1heD03MCMlRjAlOUYlODclQjMlRjAlOUYlODclQjElMjAlRDAlOUQlRDAlQjglRDAlQjQlRDAlQjUlRDElODAlRDAlQkIlRDAlQjAlRDAlQkQlRDAlQjQlRDElOEIlMjAlMjMxJTIwJTVCQUklNUQlMjAoNzhtcyk=
+[
+  {
+    "remarks": "🇩🇪 Германия #1 [AI] (72ms)",
+    "log": {
+      "loglevel": "warning"
+    },
+    "inbounds": [
+      {
+        "tag": "socks",
+        "port": 10808,
+        "listen": "127.0.0.1",
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "tag": "proxy",
+        "protocol": "wireguard",
+        "settings": {
+          "secretKey": "GCEDyqhVelK18FrLpiIn7zswSOF5CFcmio57xU0yQkU=",
+          "address": [
+            "172.16.0.2/32",
+            "2606:4700:110:820d:2e6e:3c13:6208:6a73/128"
+          ],
+          "peers": [
+            {
+              "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+              "endpoint": "162.159.192.1:2408",
+              "keepAlive": 25
+            }
+          ],
+          "reserved": [
+            193,
+            42,
+            193
+          ],
+          "mtu": 1280,
+          "noKernelTun": true
+        }
+      },
+      {
+        "tag": "direct",
+        "protocol": "freedom"
+      },
+      {
+        "tag": "block",
+        "protocol": "blackhole"
+      }
+    ],
+    "routing": {
+      "domainStrategy": "AsIs",
+      "rules": [
+        {
+          "type": "field",
+          "domain": [
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "ads.youtube.com"
+          ],
+          "outboundTag": "block"
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:ru",
+            "domain:xn--p1ai"
+          ],
+          "outboundTag": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "remarks": "🇳🇱 Нидерланды #1 [AI] (78ms)",
+    "log": {
+      "loglevel": "warning"
+    },
+    "inbounds": [
+      {
+        "tag": "socks",
+        "port": 10808,
+        "listen": "127.0.0.1",
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "tag": "proxy",
+        "protocol": "wireguard",
+        "settings": {
+          "secretKey": "GCEDyqhVelK18FrLpiIn7zswSOF5CFcmio57xU0yQkU=",
+          "address": [
+            "172.16.0.2/32",
+            "2606:4700:110:820d:2e6e:3c13:6208:6a73/128"
+          ],
+          "peers": [
+            {
+              "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+              "endpoint": "162.159.193.10:854",
+              "keepAlive": 25
+            }
+          ],
+          "reserved": [
+            193,
+            42,
+            193
+          ],
+          "mtu": 1280,
+          "noKernelTun": true
+        }
+      },
+      {
+        "tag": "direct",
+        "protocol": "freedom"
+      },
+      {
+        "tag": "block",
+        "protocol": "blackhole"
+      }
+    ],
+    "routing": {
+      "domainStrategy": "AsIs",
+      "rules": [
+        {
+          "type": "field",
+          "domain": [
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "ads.youtube.com"
+          ],
+          "outboundTag": "block"
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:ru",
+            "domain:xn--p1ai"
+          ],
+          "outboundTag": "direct"
+        }
+      ]
+    }
+  }
+]
