@@ -1,0 +1,16 @@
+name: WARP IP Scanner
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run scanner
+        env:
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+        run: python3 scanner.py
