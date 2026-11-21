@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives import serialization
 SUBNETS = ["162.159.192.", "162.159.193.", "162.159.195.", "188.114.96.", "188.114.97."]
 PORTS = [854, 859, 864, 894, 908, 2408, 1701, 4500]
 WG_HANDSHAKE = bytes.fromhex("01000000" + "00" * 144)
+UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 def check_endpoint(target):
     ip, port = target
@@ -61,31 +62,43 @@ def register_warp():
         "reserved": [cid[0], cid[1], cid[2]]
     }
 
-def post_worker(worker_url, secret, body_dict):
+def post_worker(api_url, secret, body_dict):
     req = urllib.request.Request(
-        worker_url,
+        api_url,
         data=json.dumps(body_dict).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {secret}",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            "User-Agent": UA
         },
         method="POST"
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
         return resp.read().decode()
 
+def fetch_text(url):
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return resp.read().decode("utf-8")
+
 def main():
-    worker_url = os.environ["WORKER_URL"].rstrip("/") + "/admin/update"
+    base_url = os.environ["WORKER_URL"].rstrip("/")
     secret = os.environ["ADMIN_SECRET"]
 
     candidates = [(f"{sub}{random.randint(1, 254)}", random.choice(PORTS)) for sub in SUBNETS for _ in range(60)]
     with ThreadPoolExecutor(max_workers=50) as ex:
         unique_ips = list(set(filter(None, ex.map(check_endpoint, candidates))))[:100]
-    print("IPs:", post_worker(worker_url, secret, {"type": "raw_ips", "ips": unique_ips}))
+    print("IPs:", post_worker(base_url + "/admin/update", secret, {"type": "raw_ips", "ips": unique_ips}))
 
     creds = register_warp()
-    print("WARP:", post_worker(worker_url, secret, {"type": "warp_creds", "creds": creds}))
+    print("WARP:", post_worker(base_url + "/admin/update", secret, {"type": "warp_creds", "creds": creds}))
+
+    os.makedirs("sub", exist_ok=True)
+    with open("sub/free", "w", encoding="utf-8") as f:
+        f.write(fetch_text(base_url + "/sub/free"))
+    with open("nodes.json", "w", encoding="utf-8") as f:
+        f.write(fetch_text(base_url + "/api/nodes?token=free"))
+    print("Mirror files saved!")
 
 if __name__ == "__main__":
     main()
