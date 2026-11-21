@@ -5,8 +5,11 @@ SOURCES = [
     "https://raw.githubusercontent.com/ebrasha/free-v2ray-public-list/refs/heads/main/V2Ray-Config-By-EbraSha.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub1.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub2.txt",
+    "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub3.txt",
     "https://raw.githubusercontent.com/yebekhe/TVC/main/subscriptions/xray/normal/vless",
+    "https://raw.githubusercontent.com/yebekhe/TVC/main/subscriptions/xray/normal/trojan",
     "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/Protocols/vless.txt",
+    "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/Protocols/trojan.txt",
     "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt"
 ]
 
@@ -36,43 +39,48 @@ def fetch_lines(url):
     except Exception:
         return []
 
-def parse_vless(uri):
-    if not uri.startswith("vless://"):
+def parse_uri(uri):
+    if not (uri.startswith("vless://") or uri.startswith("trojan://")):
         return None
     try:
         base_uri = uri.split("#", 1)[0]
         p = urllib.parse.urlsplit(base_uri)
-        uuid = p.username
+        proto = p.scheme
+        cred = urllib.parse.unquote(p.username or "")
         host = p.hostname
         port = p.port or 443
-        if not uuid or not host or host in ("127.0.0.1", "0.0.0.0", "localhost"):
+        if not cred or not host or host in ("127.0.0.1", "0.0.0.0", "localhost"):
             return None
+
         q = dict(urllib.parse.parse_qsl(p.query))
-        sec = q.get("security", "none")
+        sec = q.get("security", "tls" if proto == "trojan" else "none")
         net = q.get("type", "tcp")
+
         if sec not in ("reality", "tls"):
             return None
         if sec == "reality" and not q.get("pbk"):
             return None
 
-        outbound = {
-            "protocol": "vless",
-            "settings": {
-                "vnext": [{
-                    "address": host,
-                    "port": port,
-                    "users": [{
-                        "id": uuid,
-                        "encryption": "none",
-                        "flow": q.get("flow", "")
+        if proto == "vless":
+            outbound = {
+                "protocol": "vless",
+                "settings": {
+                    "vnext": [{
+                        "address": host,
+                        "port": port,
+                        "users": [{"id": cred, "encryption": "none", "flow": q.get("flow", "")}]
                     }]
-                }]
-            },
-            "streamSettings": {
-                "network": net,
-                "security": sec
+                },
+                "streamSettings": {"network": net, "security": sec}
             }
-        }
+        else:
+            outbound = {
+                "protocol": "trojan",
+                "settings": {
+                    "servers": [{"address": host, "port": port, "password": cred}]
+                },
+                "streamSettings": {"network": net, "security": sec}
+            }
 
         if sec == "reality":
             outbound["streamSettings"]["realitySettings"] = {
@@ -114,19 +122,19 @@ def test_socks_traffic(args):
     port, node = args
     t0 = time.monotonic()
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(4.0)
+    s.settimeout(4.5)
     try:
         s.connect(("127.0.0.1", port))
         s.sendall(b"\x05\x01\x00")
         if s.recv(2) != b"\x05\x00":
             return None
-        target = b"cp.cloudflare.com"
+        target = b"connectivitycheck.gstatic.com"
         req = b"\x05\x01\x00\x03" + bytes([len(target)]) + target + struct.pack(">H", 80)
         s.sendall(req)
         resp = s.recv(10)
         if len(resp) < 2 or resp[1] != 0:
             return None
-        s.sendall(b"GET /generate_204 HTTP/1.1\r\nHost: cp.cloudflare.com\r\nConnection: close\r\n\r\n")
+        s.sendall(b"GET /generate_204 HTTP/1.1\r\nHost: connectivitycheck.gstatic.com\r\nConnection: close\r\n\r\n")
         data = s.recv(256)
         if b"204" in data or b"200" in data:
             ms = int((time.monotonic() - t0) * 1000)
@@ -139,7 +147,7 @@ def test_socks_traffic(args):
 
 def verify_batch_with_xray(nodes):
     verified = []
-    batch_size = 35
+    batch_size = 50
     for i in range(0, len(nodes), batch_size):
         batch = nodes[i:i + batch_size]
         inbounds = []
@@ -151,7 +159,7 @@ def verify_batch_with_xray(nodes):
             out_tag = f"out_{idx}"
             inbounds.append({
                 "tag": in_tag, "port": local_port, "listen": "127.0.0.1",
-                "protocol": "socks", "settings": {"auth": "noauth", "udp": False}
+                "protocol": "socks", "settings": {"auth: ": "noauth", "auth": "noauth", "udp": False}
             })
             out = json.loads(json.dumps(n["outbound"]))
             out["tag"] = out_tag
@@ -168,16 +176,17 @@ def verify_batch_with_xray(nodes):
             json.dump(cfg, f)
 
         proc = subprocess.Popen(["./xray", "-c", "test_xray.json"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(1.5)
+        time.sleep(2.0)
         try:
             tasks = [(21000 + idx, n) for idx, n in enumerate(batch)]
-            with ThreadPoolExecutor(max_workers=20) as ex:
+            with ThreadPoolExecutor(max_workers=25) as ex:
                 for res in ex.map(test_socks_traffic, tasks):
                     if res:
                         verified.append(res)
         finally:
             proc.terminate()
             proc.wait()
+        print(f"Batch {i // batch_size + 1}: total verified = {len(verified)}")
         if len(verified) >= 25:
             break
     return verified
@@ -205,28 +214,33 @@ def resolve_countries(hosts):
 
 def main():
     all_lines = []
-    with ThreadPoolExecutor(max_workers=6) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         for lines in ex.map(fetch_lines, SOURCES):
             all_lines.extend(lines)
 
     seen = set()
     parsed_nodes = []
     for line in all_lines:
-        n = parse_vless(line)
+        n = parse_uri(line)
         if n:
             key = (n["host"], n["port"], n["uri"][:55])
             if key not in seen:
                 seen.add(key)
                 parsed_nodes.append(n)
 
+    print(f"Parsed total: {len(parsed_nodes)}")
     random.shuffle(parsed_nodes)
-    with ThreadPoolExecutor(max_workers=60) as ex:
-        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:350])))
+    with ThreadPoolExecutor(max_workers=80) as ex:
+        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:700])))
 
     print(f"TCP alive: {len(tcp_alive)}, testing real traffic via Xray...")
-    verified = verify_batch_with_xray(tcp_alive[:140])
+    verified = verify_batch_with_xray(tcp_alive[:350])
     verified.sort(key=lambda x: x[0])
     print(f"Real traffic passed: {len(verified)} nodes!")
+
+    if not verified:
+        print("No verified nodes in this run, keeping previous list.")
+        return
 
     geo = resolve_countries([n["host"] for _, n in verified])
     by_country = {}
