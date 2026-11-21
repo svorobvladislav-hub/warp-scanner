@@ -1,4 +1,4 @@
-import socket, random, json, os, urllib.request, urllib.parse, base64, time, subprocess, struct
+import socket, random, json, os, urllib.request, urllib.parse, base64, time, subprocess, struct, ssl
 from concurrent.futures import ThreadPoolExecutor
 
 SOURCES = [
@@ -6,8 +6,19 @@ SOURCES = [
     "https://raw.githubusercontent.com/yebekhe/TVC/main/subscriptions/xray/normal/vless",
     "https://raw.githubusercontent.com/SoliSpirit/v2ray-configs/main/Protocols/vless.txt",
     "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub1.txt",
-    "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt"
+    "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Sub2.txt",
+    "https://raw.githubusercontent.com/mahdibland/V2RayAggregator/master/sub/sub_merge.txt",
+    "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt"
 ]
+
+# SNI, заблокированные или придушенные ТСПУ в РФ
+BLOCKED_SNI_PARTS = (
+    "google", "youtube", "youtu.be", "ggpht", "gstatic", "facebook", "fbcdn",
+    "instagram", "twitter", "x.com", "twimg", "discord", "telegram", "t.me",
+    "openai", "chatgpt", "claude", "anthropic", "gemini", "netflix", "spotify",
+    "rutracker", "bbc", "meduza", "svoboda", "dw.com", "kinozal", "nnmclub",
+    "pornhub", "xvideos", "linkedin", "medium.com", "patreon", "viber", "signal"
+)
 
 COUNTRY_NAMES = {
     "DE": "🇩🇪 Германия", "NL": "🇳🇱 Нидерланды", "FI": "🇫🇮 Финляндия",
@@ -47,6 +58,12 @@ def is_valid_uuid(u):
     parts = u.split("-")
     return len(u) == 36 and [len(x) for x in parts] == [8, 4, 4, 4, 12] and all(c in "0123456789abcdefABCDEF-" for c in u)
 
+def is_clean_ru_sni(sni):
+    s = sni.lower().strip()
+    if not s or "." not in s:
+        return False
+    return not any(bad in s for bad in BLOCKED_SNI_PARTS)
+
 def parse_vless_reality(uri):
     if not uri.startswith("vless://") or "security=reality" not in uri:
         return None
@@ -66,7 +83,7 @@ def parse_vless_reality(uri):
         pbk = (q.get("pbk") or "").strip()
         sid = (q.get("sid") or "").strip()
         sni = (q.get("sni") or "").strip()
-        if not sni or not is_valid_pbk(pbk) or not is_valid_sid(sid):
+        if not is_clean_ru_sni(sni) or not is_valid_pbk(pbk) or not is_valid_sid(sid):
             return None
 
         fp = (q.get("fp") or "chrome").lower()
@@ -105,34 +122,45 @@ def parse_vless_reality(uri):
 def tcp_ping(node):
     t0 = time.monotonic()
     try:
-        with socket.create_connection((node["host"], node["port"]), timeout=1.0):
+        with socket.create_connection((node["host"], node["port"]), timeout=0.9):
             return (time.monotonic() - t0, node)
     except Exception:
         return None
 
-def test_socks_traffic(args):
+def test_telegram_tls_traffic(args):
     port, node = args
     t0 = time.monotonic()
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(2.5)
+    raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    raw_sock.settimeout(3.0)
+    tls_sock = None
     try:
-        s.connect(("127.0.0.1", port))
-        s.sendall(b"\x05\x01\x00")
-        if s.recv(2) != b"\x05\x00":
+        raw_sock.connect(("127.0.0.1", port))
+        raw_sock.sendall(b"\x05\x01\x00")
+        if raw_sock.recv(2) != b"\x05\x00":
             return None
-        target = b"connectivitycheck.gstatic.com"
-        s.sendall(b"\x05\x01\x00\x03" + bytes([len(target)]) + target + struct.pack(">H", 80))
-        resp = s.recv(10)
+        target = b"api.telegram.org"
+        raw_sock.sendall(b"\x05\x01\x00\x03" + bytes([len(target)]) + target + struct.pack(">H", 443))
+        resp = raw_sock.recv(10)
         if len(resp) < 2 or resp[1] != 0:
             return None
-        s.sendall(b"GET /generate_204 HTTP/1.1\r\nHost: connectivitycheck.gstatic.com\r\nConnection: close\r\n\r\n")
-        data = s.recv(256)
-        if b"204" in data or b"200" in data:
-            return (int((time.monotonic() - t0) * 1000), node)
+
+        ctx = ssl.create_default_context()
+        tls_sock = ctx.wrap_socket(raw_sock, server_hostname="api.telegram.org")
+        tls_sock.settimeout(3.0)
+        tls_sock.sendall(b"GET / HTTP/1.1\r\nHost: api.telegram.org\r\nConnection: close\r\n\r\n")
+        data = tls_sock.recv(512)
+        ms = int((time.monotonic() - t0) * 1000)
+        if (b"HTTP/1.1" in data or b"HTTP/2" in data) and ms <= 1800:
+            return (ms, node)
     except Exception:
         return None
     finally:
-        s.close()
+        if tls_sock:
+            try:
+                tls_sock.close()
+            except Exception:
+                pass
+        raw_sock.close()
     return None
 
 def test_batch(batch):
@@ -162,7 +190,7 @@ def test_batch(batch):
     try:
         tasks = [(21000 + idx, n) for idx, n in enumerate(batch)]
         with ThreadPoolExecutor(max_workers=60) as ex:
-            for res in ex.map(test_socks_traffic, tasks):
+            for res in ex.map(test_telegram_tls_traffic, tasks):
                 if res:
                     passed.append(res)
     finally:
@@ -193,7 +221,7 @@ def resolve_countries(hosts):
 
 def main():
     all_lines = []
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=7) as ex:
         for lines in ex.map(fetch_lines, SOURCES):
             all_lines.extend(lines)
 
@@ -207,21 +235,21 @@ def main():
                 seen.add(key)
                 parsed_nodes.append(n)
 
-    print(f"Valid VLESS Reality nodes: {len(parsed_nodes)}")
+    print(f"RU-clean VLESS Reality nodes: {len(parsed_nodes)}")
     random.shuffle(parsed_nodes)
     with ThreadPoolExecutor(max_workers=100) as ex:
-        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:450])))
+        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:600])))
 
     tcp_alive.sort(key=lambda x: x[0])
-    fast_nodes = [n for _, n in tcp_alive[:120]]
-    print(f"TCP alive: {len(tcp_alive)}, testing top {len(fast_nodes)} via Xray...")
+    fast_nodes = [n for _, n in tcp_alive[:180]]
+    print(f"TCP alive: {len(tcp_alive)}, testing Telegram TLS via Xray on top {len(fast_nodes)}...")
 
     verified = []
     for i in range(0, len(fast_nodes), 60):
         verified.extend(test_batch(fast_nodes[i:i + 60]))
 
     verified.sort(key=lambda x: x[0])
-    print(f"Real traffic passed: {len(verified)} nodes!")
+    print(f"Telegram TLS passed: {len(verified)} nodes!")
 
     if not verified:
         print("No verified nodes in this run.")
@@ -239,11 +267,11 @@ def main():
 
     for country, items in by_country.items():
         countries_json[country] = []
-        for idx, (ms, base_uri) in enumerate(items[:4], start=1):
+        for idx, (ms, base_uri) in enumerate(items[:5], start=1):
             label = f"{country} #{idx} ({ms}ms) • The Last VPN"
             full_uri = f"{base_uri}#{urllib.parse.quote(label)}"
             pro_links.append(full_uri)
-            if idx == 1 and len(free_links) < 8:
+            if idx <= 2 and len(free_links) < 16:
                 free_links.append(full_uri)
             countries_json[country].append({"uri": full_uri, "latency": ms})
 
