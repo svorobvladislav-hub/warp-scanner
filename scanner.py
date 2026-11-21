@@ -26,7 +26,11 @@ def main():
     req = urllib.request.Request(
         worker_url,
         data=json.dumps({"type": "raw_ips", "ips": unique_ips}).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {os.environ['ADMIN_SECRET']}"},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {os.environ['ADMIN_SECRET']}",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        },
         method="POST"
     )
     with urllib.request.urlopen(req) as resp:
