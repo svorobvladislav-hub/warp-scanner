@@ -4,6 +4,13 @@
     "log": {
       "loglevel": "warning"
     },
+    "dns": {
+      "servers": [
+        "1.1.1.1",
+        "8.8.8.8"
+      ],
+      "queryStrategy": "UseIPv4"
+    },
     "inbounds": [
       {
         "tag": "socks",
@@ -13,6 +20,14 @@
         "settings": {
           "auth": "noauth",
           "udp": true
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ]
         }
       }
     ],
@@ -21,25 +36,42 @@
         "tag": "proxy",
         "protocol": "wireguard",
         "settings": {
-          "secretKey": "GCEDyqhVelK18FrLpiIn7zswSOF5CFcmio57xU0yQkU=",
+          "secretKey": "uNVIx95T/WtSKKzKh8+Mxbs/jby0vAql0FEkJ87wXEU=",
           "address": [
-            "172.16.0.2/32",
-            "2606:4700:110:820d:2e6e:3c13:6208:6a73/128"
+            "172.16.0.2/32"
           ],
           "peers": [
             {
               "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-              "endpoint": "162.159.192.1:2408",
+              "endpoint": "162.159.192.1:854",
               "keepAlive": 25
             }
           ],
           "reserved": [
-            193,
-            42,
-            193
+            57,
+            3,
+            89
           ],
           "mtu": 1280,
           "noKernelTun": true
+        },
+        "streamSettings": {
+          "sockopt": {
+            "dialerProxy": "warp-noise"
+          }
+        }
+      },
+      {
+        "tag": "warp-noise",
+        "protocol": "freedom",
+        "settings": {
+          "noises": [
+            {
+              "type": "rand",
+              "packet": "15-30",
+              "delay": "10-20"
+            }
+          ]
         }
       },
       {
@@ -52,7 +84,7 @@
       }
     ],
     "routing": {
-      "domainStrategy": "AsIs",
+      "domainStrategy": "IPIfNonMatch",
       "rules": [
         {
           "type": "field",
@@ -80,6 +112,13 @@
     "log": {
       "loglevel": "warning"
     },
+    "dns": {
+      "servers": [
+        "1.1.1.1",
+        "8.8.8.8"
+      ],
+      "queryStrategy": "UseIPv4"
+    },
     "inbounds": [
       {
         "tag": "socks",
@@ -89,6 +128,14 @@
         "settings": {
           "auth": "noauth",
           "udp": true
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ]
         }
       }
     ],
@@ -97,25 +144,42 @@
         "tag": "proxy",
         "protocol": "wireguard",
         "settings": {
-          "secretKey": "GCEDyqhVelK18FrLpiIn7zswSOF5CFcmio57xU0yQkU=",
+          "secretKey": "uNVIx95T/WtSKKzKh8+Mxbs/jby0vAql0FEkJ87wXEU=",
           "address": [
-            "172.16.0.2/32",
-            "2606:4700:110:820d:2e6e:3c13:6208:6a73/128"
+            "172.16.0.2/32"
           ],
           "peers": [
             {
               "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-              "endpoint": "162.159.193.10:854",
+              "endpoint": "162.159.193.10:859",
               "keepAlive": 25
             }
           ],
           "reserved": [
-            193,
-            42,
-            193
+            57,
+            3,
+            89
           ],
           "mtu": 1280,
           "noKernelTun": true
+        },
+        "streamSettings": {
+          "sockopt": {
+            "dialerProxy": "warp-noise"
+          }
+        }
+      },
+      {
+        "tag": "warp-noise",
+        "protocol": "freedom",
+        "settings": {
+          "noises": [
+            {
+              "type": "rand",
+              "packet": "15-30",
+              "delay": "10-20"
+            }
+          ]
         }
       },
       {
@@ -128,7 +192,223 @@
       }
     ],
     "routing": {
-      "domainStrategy": "AsIs",
+      "domainStrategy": "IPIfNonMatch",
+      "rules": [
+        {
+          "type": "field",
+          "domain": [
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "ads.youtube.com"
+          ],
+          "outboundTag": "block"
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:ru",
+            "domain:xn--p1ai"
+          ],
+          "outboundTag": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "remarks": "⚡️ Авто-резерв #1",
+    "log": {
+      "loglevel": "warning"
+    },
+    "dns": {
+      "servers": [
+        "1.1.1.1",
+        "8.8.8.8"
+      ],
+      "queryStrategy": "UseIPv4"
+    },
+    "inbounds": [
+      {
+        "tag": "socks",
+        "port": 10808,
+        "listen": "127.0.0.1",
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ]
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "tag": "proxy",
+        "protocol": "wireguard",
+        "settings": {
+          "secretKey": "uNVIx95T/WtSKKzKh8+Mxbs/jby0vAql0FEkJ87wXEU=",
+          "address": [
+            "172.16.0.2/32"
+          ],
+          "peers": [
+            {
+              "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+              "endpoint": "188.114.96.183:1701",
+              "keepAlive": 25
+            }
+          ],
+          "reserved": [
+            57,
+            3,
+            89
+          ],
+          "mtu": 1280,
+          "noKernelTun": true
+        },
+        "streamSettings": {
+          "sockopt": {
+            "dialerProxy": "warp-noise"
+          }
+        }
+      },
+      {
+        "tag": "warp-noise",
+        "protocol": "freedom",
+        "settings": {
+          "noises": [
+            {
+              "type": "rand",
+              "packet": "15-30",
+              "delay": "10-20"
+            }
+          ]
+        }
+      },
+      {
+        "tag": "direct",
+        "protocol": "freedom"
+      },
+      {
+        "tag": "block",
+        "protocol": "blackhole"
+      }
+    ],
+    "routing": {
+      "domainStrategy": "IPIfNonMatch",
+      "rules": [
+        {
+          "type": "field",
+          "domain": [
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "ads.youtube.com"
+          ],
+          "outboundTag": "block"
+        },
+        {
+          "type": "field",
+          "domain": [
+            "domain:ru",
+            "domain:xn--p1ai"
+          ],
+          "outboundTag": "direct"
+        }
+      ]
+    }
+  },
+  {
+    "remarks": "⚡️ Авто-резерв #2",
+    "log": {
+      "loglevel": "warning"
+    },
+    "dns": {
+      "servers": [
+        "1.1.1.1",
+        "8.8.8.8"
+      ],
+      "queryStrategy": "UseIPv4"
+    },
+    "inbounds": [
+      {
+        "tag": "socks",
+        "port": 10808,
+        "listen": "127.0.0.1",
+        "protocol": "socks",
+        "settings": {
+          "auth": "noauth",
+          "udp": true
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": [
+            "http",
+            "tls",
+            "quic"
+          ]
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "tag": "proxy",
+        "protocol": "wireguard",
+        "settings": {
+          "secretKey": "uNVIx95T/WtSKKzKh8+Mxbs/jby0vAql0FEkJ87wXEU=",
+          "address": [
+            "172.16.0.2/32"
+          ],
+          "peers": [
+            {
+              "publicKey": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
+              "endpoint": "188.114.96.225:1701",
+              "keepAlive": 25
+            }
+          ],
+          "reserved": [
+            57,
+            3,
+            89
+          ],
+          "mtu": 1280,
+          "noKernelTun": true
+        },
+        "streamSettings": {
+          "sockopt": {
+            "dialerProxy": "warp-noise"
+          }
+        }
+      },
+      {
+        "tag": "warp-noise",
+        "protocol": "freedom",
+        "settings": {
+          "noises": [
+            {
+              "type": "rand",
+              "packet": "15-30",
+              "delay": "10-20"
+            }
+          ]
+        }
+      },
+      {
+        "tag": "direct",
+        "protocol": "freedom"
+      },
+      {
+        "tag": "block",
+        "protocol": "blackhole"
+      }
+    ],
+    "routing": {
+      "domainStrategy": "IPIfNonMatch",
       "rules": [
         {
           "type": "field",
