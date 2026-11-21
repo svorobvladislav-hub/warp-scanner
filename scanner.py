@@ -11,7 +11,7 @@ SOURCES = [
     "https://raw.githubusercontent.com/Epodonios/v2ray-configs/main/All_Configs_Sub.txt"
 ]
 
-# SNI, заблокированные или придушенные ТСПУ в РФ
+# Отсеиваем SNI, которые режет ТСПУ в РФ
 BLOCKED_SNI_PARTS = (
     "google", "youtube", "youtu.be", "ggpht", "gstatic", "facebook", "fbcdn",
     "instagram", "twitter", "x.com", "twimg", "discord", "telegram", "t.me",
@@ -30,8 +30,9 @@ COUNTRY_NAMES = {
     "CA": "🇨🇦 Канада", "SG": "🇸🇬 Сингапур", "JP": "🇯🇵 Япония"
 }
 
-VALID_FPS = {"chrome", "firefox", "safari", "ios", "android", "edge", "random", "randomized"}
+VALID_FPS = {"chrome", "firefox", "safari", "ios", "android", "edge", "360", "qq", "random", "randomized"}
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+SSL_CTX = ssl.create_default_context()
 
 def fetch_lines(url):
     try:
@@ -60,9 +61,7 @@ def is_valid_uuid(u):
 
 def is_clean_ru_sni(sni):
     s = sni.lower().strip()
-    if not s or "." not in s:
-        return False
-    return not any(bad in s for bad in BLOCKED_SNI_PARTS)
+    return bool(s and "." in s and not any(bad in s for bad in BLOCKED_SNI_PARTS))
 
 def parse_vless_reality(uri):
     if not uri.startswith("vless://") or "security=reality" not in uri:
@@ -111,7 +110,7 @@ def parse_vless_reality(uri):
                     "fingerprint": fp,
                     "publicKey": pbk,
                     "shortId": sid,
-                    "spiderX": "/"
+                    "spiderX": q.get("spx") or "/"
                 }
             }
         }
@@ -122,35 +121,34 @@ def parse_vless_reality(uri):
 def tcp_ping(node):
     t0 = time.monotonic()
     try:
-        with socket.create_connection((node["host"], node["port"]), timeout=0.9):
+        with socket.create_connection((node["host"], node["port"]), timeout=1.0):
             return (time.monotonic() - t0, node)
     except Exception:
         return None
 
-def test_telegram_tls_traffic(args):
+def test_https_traffic(args):
     port, node = args
     t0 = time.monotonic()
     raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    raw_sock.settimeout(3.0)
+    raw_sock.settimeout(3.5)
     tls_sock = None
     try:
         raw_sock.connect(("127.0.0.1", port))
         raw_sock.sendall(b"\x05\x01\x00")
         if raw_sock.recv(2) != b"\x05\x00":
             return None
-        target = b"api.telegram.org"
+        target = b"www.apple.com"
         raw_sock.sendall(b"\x05\x01\x00\x03" + bytes([len(target)]) + target + struct.pack(">H", 443))
         resp = raw_sock.recv(10)
         if len(resp) < 2 or resp[1] != 0:
             return None
 
-        ctx = ssl.create_default_context()
-        tls_sock = ctx.wrap_socket(raw_sock, server_hostname="api.telegram.org")
-        tls_sock.settimeout(3.0)
-        tls_sock.sendall(b"GET / HTTP/1.1\r\nHost: api.telegram.org\r\nConnection: close\r\n\r\n")
-        data = tls_sock.recv(512)
+        tls_sock = SSL_CTX.wrap_socket(raw_sock, server_hostname="www.apple.com")
+        tls_sock.settimeout(3.5)
+        tls_sock.sendall(b"GET /library/test/success.html HTTP/1.1\r\nHost: www.apple.com\r\nConnection: close\r\n\r\n")
+        data = tls_sock.recv(256)
         ms = int((time.monotonic() - t0) * 1000)
-        if (b"HTTP/1.1" in data or b"HTTP/2" in data) and ms <= 1800:
+        if b"Success" in data or b"200 OK" in data:
             return (ms, node)
     except Exception:
         return None
@@ -183,14 +181,13 @@ def test_batch(batch):
     proc = subprocess.Popen(["./xray", "run", "-c", "test_xray.json"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     time.sleep(0.8)
     if proc.poll() is not None:
-        print("Xray error:", proc.stdout.read().decode("utf-8", errors="ignore").strip()[-250:])
         return []
 
     passed = []
     try:
         tasks = [(21000 + idx, n) for idx, n in enumerate(batch)]
-        with ThreadPoolExecutor(max_workers=60) as ex:
-            for res in ex.map(test_telegram_tls_traffic, tasks):
+        with ThreadPoolExecutor(max_workers=30) as ex:
+            for res in ex.map(test_https_traffic, tasks):
                 if res:
                     passed.append(res)
     finally:
@@ -238,18 +235,18 @@ def main():
     print(f"RU-clean VLESS Reality nodes: {len(parsed_nodes)}")
     random.shuffle(parsed_nodes)
     with ThreadPoolExecutor(max_workers=100) as ex:
-        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:600])))
+        tcp_alive = list(filter(None, ex.map(tcp_ping, parsed_nodes[:500])))
 
     tcp_alive.sort(key=lambda x: x[0])
-    fast_nodes = [n for _, n in tcp_alive[:180]]
-    print(f"TCP alive: {len(tcp_alive)}, testing Telegram TLS via Xray on top {len(fast_nodes)}...")
+    fast_nodes = [n for _, n in tcp_alive[:150]]
+    print(f"TCP alive: {len(tcp_alive)}, testing HTTPS via Xray on top {len(fast_nodes)}...")
 
     verified = []
-    for i in range(0, len(fast_nodes), 60):
-        verified.extend(test_batch(fast_nodes[i:i + 60]))
+    for i in range(0, len(fast_nodes), 30):
+        verified.extend(test_batch(fast_nodes[i:i + 30]))
 
     verified.sort(key=lambda x: x[0])
-    print(f"Telegram TLS passed: {len(verified)} nodes!")
+    print(f"Real HTTPS passed: {len(verified)} nodes!")
 
     if not verified:
         print("No verified nodes in this run.")
