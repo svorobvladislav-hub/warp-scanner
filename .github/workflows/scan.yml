@@ -1,7 +1,7 @@
-name: WARP AmneziaWG Generator
+name: Happ Cascade Builder
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -12,13 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Generate WARP AmneziaWG config
+      - name: Install Xray Core
         run: |
-          pip install -q cryptography
-          python3 scanner.py
-      - name: Publish config
+          curl -sL https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip -o xray.zip
+          unzip -q -o xray.zip xray
+          chmod +x xray
+      - name: Build RU-Bridge Cascade for Happ
+        run: python3 scanner.py
+      - name: Publish Happ JSON subscription
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add sub/ warp.conf
-          git diff --staged --quiet || (git commit -m "Update WARP AmneziaWG config" && git push)
+          git add sub/ nodes.json
+          git diff --staged --quiet || (git commit -m "Update Happ RU-bridge cascade" && git push)
