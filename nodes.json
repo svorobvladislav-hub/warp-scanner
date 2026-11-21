@@ -1,4 +1,121 @@
 {
-  "updated": 1795265638,
-  "countries": {}
+  "updated": 1795266630,
+  "countries": {
+    "🇺🇸 США": [
+      {
+        "uri": "vless://1ad82982-f3e1-4b6b-99bf-a9cfdf186b96@172.233.197.105:62867?security=reality&type=tcp&sni=www.cloudflare.com&fp=chrome&flow=xtls-rprx-vision&sid=1f2519bb96e5589c&pbk=U7t4RFE9MSMtC-o1DoJ8pYzKMfgVpTg6ZhTTknBrVkU#%F0%9F%87%BA%F0%9F%87%B8%20%D0%A1%D0%A8%D0%90%20%231%20%2833ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 33
+      },
+      {
+        "uri": "vless://14c80e0e-f7ce-4991-94fc-99a1db4a9b1e@159.89.87.21:28190/?type=tcp&encryption=none&flow=xtls-rprx-vision&sni=aws.amazon.com&fp=chrome&security=reality&pbk=ZJRnFU-1s1JOnO8E9uZ7b00l1fPEh63fGRbdBANFRno&sid=#%F0%9F%87%BA%F0%9F%87%B8%20%D0%A1%D0%A8%D0%90%20%232%20%2844ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 44
+      },
+      {
+        "uri": "vless://d65cc14c-f53f-4fe2-b262-97856601319c@169.40.42.163:443?security=reality&encryption=none&pbk=e2RLf57Li_-MDZGE9ss1BWPgP54mqRb5PfXhW2jcVVg&headerType=none&fp=ios&type=tcp&flow=xtls-rprx-vision&sni=yahoo.com&sid=c39cc7310a#%F0%9F%87%BA%F0%9F%87%B8%20%D0%A1%D0%A8%D0%90%20%233%20%2862ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 62
+      },
+      {
+        "uri": "vless://d65cc14c-f53f-4fe2-b262-97856601319c@169.40.42.74:443?security=reality&encryption=none&pbk=e2RLf57Li_-MDZGE9ss1BWPgP54mqRb5PfXhW2jcVVg&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=yahoo.com&sid=c39cc7310a#%F0%9F%87%BA%F0%9F%87%B8%20%D0%A1%D0%A8%D0%90%20%234%20%2872ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 72
+      }
+    ],
+    "🇪🇺 Европа": [
+      {
+        "uri": "vless://66c090eb-526b-494d-835c-cfdea8808eca@xray2-direct-mci1-fs-ce.freesocks.work:443?encryption=none&flow=xtls-rprx-vision&type=tcp&security=reality&sni=dl.google.com&fp=chrome&pbk=7j3hmlHrEDk3Kjx-dFG3E3jf0c6PZF45trIPFsuKWmI#%F0%9F%87%AA%F0%9F%87%BA%20%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0%20%231%20%28210ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 210
+      },
+      {
+        "uri": "vless://cdb7fa1d-6e7a-467c-da9c-da363c7bf779@panel.apexkey.store:2053?security=reality&type=tcp&packetEncoding=xudp&sni=www.cloudflare.com&fp=chrome&sid=68&pbk=DEFJSLdILrvauMpwtpvFZddadpt3rNtv03Dui2EkmRk#%F0%9F%87%AA%F0%9F%87%BA%20%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0%20%232%20%28246ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 246
+      },
+      {
+        "uri": "vless://26843758-24de-4f76-b5d0-624038e353c4@71b840t.de7.h1clayd.click:443?encryption=none&fp=&pbk=3wFF83gtIA0sXj-6GGCAa--oQbSr0MVUj0FBc-0QmiE&security=reality&sid=e572b6579ea525d4&sni=71b840t.de7.h1clayd.click&type=tcp#%F0%9F%87%AA%F0%9F%87%BA%20%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0%20%233%20%28332ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 332
+      }
+    ],
+    "🇳🇱 Нидерланды": [
+      {
+        "uri": "vless://48ff2b70-e180-582f-8866-d9a2edeed5f5@51.158.206.87:23576?security=reality&encryption=none&pbk=1y5h2FGWKXTJ9xLPCqPo6Mw7RxoZzh6fGkEQKNxpZ3s&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=fuck.rkn#%F0%9F%87%B3%F0%9F%87%B1%20%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%20%231%20%28272ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 272
+      },
+      {
+        "uri": "vless://48ff2b70-e180-582f-8866-d9a2edeed5f5@51.158.206.29:23576?security=reality&encryption=none&pbk=1y5h2FGWKXTJ9xLPCqPo6Mw7RxoZzh6fGkEQKNxpZ3s&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=fuck.rkn&sid=01#%F0%9F%87%B3%F0%9F%87%B1%20%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%20%232%20%28272ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 272
+      },
+      {
+        "uri": "vless://48ff2b70-e180-582f-8866-d9a2edeed5f5@51.158.206.80:23576?security=reality&encryption=none&pbk=1y5h2FGWKXTJ9xLPCqPo6Mw7RxoZzh6fGkEQKNxpZ3s&host=/?Telegram---@pirozi_ArGaP---@pirozi_ArGaP---@pirozi_ArGaP---@pirozi_ArGaP&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=fuck.rkn&sid=01#%F0%9F%87%B3%F0%9F%87%B1%20%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%20%233%20%28272ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 272
+      },
+      {
+        "uri": "vless://48ff2b70-e180-582f-8866-d9a2edeed5f5@51.158.206.34:23576?encryption=none&flow=xtls-rprx-vision&security=reality&sni=fuck.rkn&pbk=1y5h2FGWKXTJ9xLPCqPo6Mw7RxoZzh6fGkEQKNxpZ3s&sid=01&type=tcp&headerType=none&host=/?Telegram---PLANB_NET---PLANB_NET---PLANB_NET---PLANB_NET#%F0%9F%87%B3%F0%9F%87%B1%20%D0%9D%D0%B8%D0%B4%D0%B5%D1%80%D0%BB%D0%B0%D0%BD%D0%B4%D1%8B%20%234%20%28273ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 273
+      }
+    ],
+    "🇩🇪 Германия": [
+      {
+        "uri": "vless://bc93a03d-13b5-0004-8ee7-d50c11459dab@109.106.15.99:443?&security=reality&flow=xtls-rprx-vision&pbk=6VMgXXhZdJCiOG05EyK_zTHh00kpFGrZJeZIEPgqhjY&sid=1c3e8241a8743df9&fp=chrome&sni=key-master-saver.com&type=tcp&headerType=none&host=key-master-saver.com&path=%2F#%F0%9F%87%A9%F0%9F%87%AA%20%D0%93%D0%B5%D1%80%D0%BC%D0%B0%D0%BD%D0%B8%D1%8F%20%231%20%28282ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 282
+      },
+      {
+        "uri": "vless://a346c521-7a7f-452b-9356-a4893feb5982@78.17.215.141:443?security=reality&encryption=none&pbk=FWitre1jinQR7qz5HQ0q2Q4Gg9xA9B0SyizCziN7Ch0&headerType=none&type=tcp&flow=xtls-rprx-vision&sni=de15-r.bankai.party&sid=457fab2ac885dbe0#%F0%9F%87%A9%F0%9F%87%AA%20%D0%93%D0%B5%D1%80%D0%BC%D0%B0%D0%BD%D0%B8%D1%8F%20%232%20%28282ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 282
+      },
+      {
+        "uri": "vless://c53ea5e9-ed8b-4990-805d-7f1d6451426c@92.118.206.217:8443?security=reality&encryption=none&pbk=fSVfR9NB-6J6smrZlavi0GWd8JfDh0aXuEkKbtuFzUI&host=/?TELEGRAM------ICV2RAY------&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=dur.sky-vault.top&sid=3cbc3d737fb9c4af#%F0%9F%87%A9%F0%9F%87%AA%20%D0%93%D0%B5%D1%80%D0%BC%D0%B0%D0%BD%D0%B8%D1%8F%20%233%20%28288ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 288
+      },
+      {
+        "uri": "vless://d596f92b-a7ce-47d2-8392-a274d9f57bec@87.120.92.68:443?encryption=none&type=tcp&security=reality&headerType=none&sni=cloudiva.abrdns.com&insecure=1&allowInsecure=1&pbk=XLAE_KCFdlZkGcFndCnzEqsNHX1FByaGihkyEyrmDlo&sid=c1440935cc28&flow=xtls-rprx-vision#%F0%9F%87%A9%F0%9F%87%AA%20%D0%93%D0%B5%D1%80%D0%BC%D0%B0%D0%BD%D0%B8%D1%8F%20%234%20%28551ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 551
+      }
+    ],
+    "🇸🇪 Швеция": [
+      {
+        "uri": "vless://a30903dc-1bf0-4be5-8b1b-603a3a56211c@88.216.214.159:443?encryption=none&fp=chrome&pbk=drl7nndYdfzZY1aQ0eUAWmNV0nsHig2uDnu9siy9biQ&security=reality&sid=a7c92e4b10d6f835&sni=api-svc-mgr.galioncc.com&type=tcp#%F0%9F%87%B8%F0%9F%87%AA%20%D0%A8%D0%B2%D0%B5%D1%86%D0%B8%D1%8F%20%231%20%28310ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 310
+      }
+    ],
+    "🇪🇪 Эстония": [
+      {
+        "uri": "vless://13cca0fd-bb3e-44e4-9ced-1c6efcabbb03@95.85.243.72:443?security=reality&encryption=none&pbk=m3opvubdy_gjBiBkXnAw3eDUP4alVeVWxKkvZHIINjs&headerType=none&fp=chrome&type=tcp&sni=212.192.156.15&sid=426165a0badade80#%F0%9F%87%AA%F0%9F%87%AA%20%D0%AD%D1%81%D1%82%D0%BE%D0%BD%D0%B8%D1%8F%20%231%20%28350ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 350
+      }
+    ],
+    "🇩🇰 Дания": [
+      {
+        "uri": "vless://9a597d68-6688-4046-bf24-a5a541e115e0@135.136.33.134:8443?security=reality&pbk=6FI4VM9WlQEGVjyCvLDQLz1jOkrzzhtfGl9eQTBn6HU&fp=chrome&flow=xtls-rprx-vision&sni=www.apple.com&sid=f8d0271b4b5f9efc#%F0%9F%87%A9%F0%9F%87%B0%20%D0%94%D0%B0%D0%BD%D0%B8%D1%8F%20%231%20%28390ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 390
+      }
+    ],
+    "🇬🇧 Великобритания": [
+      {
+        "uri": "vless://d65cc14c-f53f-4fe2-b262-97856601319c@82.39.171.12:443?security=reality&type=tcp&packetEncoding=xudp&sni=yahoo.com&fp=chrome&flow=xtls-rprx-vision&sid=c39cc7310a&pbk=e2RLf57Li_-MDZGE9ss1BWPgP54mqRb5PfXhW2jcVVg#%F0%9F%87%AC%F0%9F%87%A7%20%D0%92%D0%B5%D0%BB%D0%B8%D0%BA%D0%BE%D0%B1%D1%80%D0%B8%D1%82%D0%B0%D0%BD%D0%B8%D1%8F%20%231%20%28475ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 475
+      }
+    ],
+    "🇨🇭 Швейцария": [
+      {
+        "uri": "vless://3950b45e-740d-4dca-ac95-505ec8534592@45.90.59.15:443?encryption=none&flow=xtls-rprx-vision&fp=&pbk=P7S4UPFlQbmiBr4txyy8NZIMTrmO3UdxyH16WBU-YzY&security=reality&sid=19253fae84102271&sni=www.cloudflare.com&type=tcp#%F0%9F%87%A8%F0%9F%87%AD%20%D0%A8%D0%B2%D0%B5%D0%B9%D1%86%D0%B0%D1%80%D0%B8%D1%8F%20%231%20%28938ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 938
+      }
+    ],
+    "🌍 Европа (GR)": [
+      {
+        "uri": "vless://8f704ed6-9a1a-4d04-94dd-1bff501716de@85.90.197.220:443?security=reality&encryption=none&pbk=biNcdU5mywtNw-KyPpLHindBxdEyAolT1WJ26N0b7y4&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=www.cloudflare.com&sid=94acb54627612d43#%F0%9F%8C%8D%20%D0%95%D0%B2%D1%80%D0%BE%D0%BF%D0%B0%20%28GR%29%20%231%20%281076ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 1076
+      }
+    ],
+    "🇫🇷 Франция": [
+      {
+        "uri": "vless://edb50d20-2d3e-4c1e-8a75-a17168a89aa5@145.223.68.58:443?security=reality&type=tcp&packetEncoding=none&sni=www.cloudflare.com&fp=chrome&flow=xtls-rprx-vision&sid=a44ff7d2e80213c2&pbk=qc2DcqT9zPPZr6ePZ7ukxACWrYhRNIBjDIjCK7veyQg#%F0%9F%87%AB%F0%9F%87%B7%20%D0%A4%D1%80%D0%B0%D0%BD%D1%86%D0%B8%D1%8F%20%231%20%281130ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 1130
+      }
+    ],
+    "🇫🇮 Финляндия": [
+      {
+        "uri": "vless://66c78912-4e2d-41dc-8742-aaae2590804e@13.143.187.220:443?security=reality&encryption=none&pbk=eDzVz3bxkv3IoN3BUCa_aA-RicoeG7ACylYSnmS2Pgg&headerType=none&fp=chrome&type=tcp&flow=xtls-rprx-vision&sni=fi-s1.kadrhub.tech#%F0%9F%87%AB%F0%9F%87%AE%20%D0%A4%D0%B8%D0%BD%D0%BB%D1%8F%D0%BD%D0%B4%D0%B8%D1%8F%20%231%20%281512ms%29%20%E2%80%A2%20The%20Last%20VPN",
+        "latency": 1512
+      }
+    ]
+  }
 }
